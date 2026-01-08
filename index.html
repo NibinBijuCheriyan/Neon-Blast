@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Blast - Arcade Shooter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #0aff00;
+            --neon-red: #ff3131;
+            --bg-dark: #050510;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-dark);
+            background: linear-gradient(135deg, #02020a 0%, #0b0b1a 100%);
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        /* Scanline effect */
+        body::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #000;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 900;
+            background: linear-gradient(to bottom, #fff, var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px var(--neon-blue);
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-size: 48px;
+            color: var(--neon-pink);
+            text-shadow: 0 0 20px var(--neon-pink);
+            margin-bottom: 15px;
+        }
+
+        .stats-box {
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid var(--neon-blue);
+            padding: 20px 40px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        .stat-row {
+            font-size: 24px;
+            margin: 10px 0;
+            color: #fff;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            background: transparent;
+            color: var(--neon-green);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            padding: 15px 50px;
+            border: 2px solid var(--neon-green);
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 10px var(--neon-green), inset 0 0 10px rgba(10, 255, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 30px var(--neon-green);
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* In-Game HUD */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .hud-item {
+            font-size: 18px;
+            color: var(--neon-blue);
+            text-shadow: 0 0 8px var(--neon-blue);
+            letter-spacing: 1px;
+        }
+
+        .hud-value {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* Health Bar */
+        .health-container {
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-red);
+            border-radius: 2px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(255, 49, 49, 0.3);
+        }
+
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #aa0000, var(--neon-red));
+            width: 100%;
+            transition: width 0.2s ease-out;
+            box-shadow: 0 0 10px var(--neon-red);
+        }
+
+        /* Boss Boss Bar */
+        #boss-ui {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #boss-name {
+            color: var(--neon-red);
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 0 0 15px var(--neon-red);
+            margin-bottom: 5px;
+            letter-spacing: 3px;
+        }
+
+        .boss-health-container {
+            width: 100%;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--neon-red);
+            box-shadow: 0 0 20px rgba(255, 49, 49, 0.4);
+        }
+
+        .boss-health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9100, #ff0000);
+            width: 100%;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <!-- HUD -->
+        <div id="hud">
+            <div class="hud-group">
+                <div class="hud-item">SCORE: <span id="scoreVal" class="hud-value">0</span></div>
+                <div class="hud-item">LEVEL: <span id="levelVal" class="hud-value">1</span></div>
+                <div class="hud-item">ENEMIES: <span id="enemiesVal" class="hud-value">0</span></div>
+            </div>
+
+            <div class="hud-group" style="align-items: flex-end;">
+                <div class="hud-item">PLAYER INTEGRITY</div>
+                <div class="health-container">
+                    <div id="playerHealthFill" class="health-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Boss UI -->
+        <div id="boss-ui">
+            <div id="boss-name">WARNING: BOSS DETECTED</div>
+            <div class="boss-health-container">
+                <div id="bossHealthFill" class="boss-health-fill"></div>
+            </div>
+        </div>
+
+        <!-- Screens -->
+        <div id="startScreen" class="overlay">
+            <h1>Neon Blast</h1>
+            <div class="stats-box" style="border-color: rgba(255,255,255,0.2); box-shadow: none;">
+                <p style="color: #aaa; margin-bottom: 5px;">CONTROLS</p>
+                <div class="stat-row" style="font-size: 16px;">WASD / ARROWS to Move</div>
+                <div class="stat-row" style="font-size: 16px;">SPACE to Shoot</div>
+            </div>
+            <button onclick="startGame()">Initialize</button>
+        </div>
+
+        <div id="levelScreen" class="overlay hidden">
+            <h2 style="color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue);">SECTOR CLEARED</h2>
+            <div class="stats-box">
+                <div class="stat-row">Bonus: <span id="levelBonus">0</span></div>
+            </div>
+            <button onclick="nextLevel()">Warp to Next Sector</button>
+        </div>
+
+        <div id="gameOverScreen" class="overlay hidden">
+            <h2>MISSION FAILED</h2>
+            <div class="stats-box" style="border-color: var(--neon-red); box-shadow: 0 0 15px rgba(255, 49, 49, 0.2);">
+                <div class="stat-row">Final Score: <span id="finalScore">0</span></div>
+                <div class="stat-row">Sector Reached: <span id="finalLevel">1</span></div>
+            </div>
+            <button onclick="restartGame()"
+                style="border-color: var(--neon-red); color: var(--neon-red); box-shadow: 0 0 10px var(--neon-red);">Retake
+                Mission</button>
+        </div>
+
+        <canvas id="game"></canvas>
+    </div>
+
+    <script>
+        /** @type {HTMLCanvasElement} */
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        // Settings
+        canvas.width = 900;
+        canvas.height = 700;
+
+        // Visuals
+        const colors = {
+            player: '#0aff00',
+            enemy: '#ff3131',
+            bullet: '#00f3ff',
+            boss: '#ff00ff'
+        };
+
+        // Game State
+        let state = {
+            status: 'MENU', // MENU, PLAYING, LEVEL_WAIT, GAME_OVER
+            score: 0,
+            level: 1,
+            health: 100,
+            maxHealth: 100,
+            enemiesInLevel: 0,
+            enemiesKilled: 0
+        };
+
+        // Entities
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 80,
+            width: 32,
+            height: 32,
+            speed: 6,
+            shootCooldown: 0
+        };
+
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let boss = null;
+        let bossBullets = [];
+        let keys = {};
+        let backgroundStars = [];
+
+        // --- Core Functions ---
+
+        function init() {
+            createStars();
+            loop();
+        }
+
+        function startGame() {
+            resetGameData();
+            document.getElementById('startScreen').classList.add('hidden');
+            state.status = 'PLAYING';
+            startLevel(1);
+        }
+
+        function resetGameData() {
+            state.score = 0;
+            state.level = 1;
+            state.health = 100;
+            state.enemiesKilled = 0;
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 100;
+            bullets = [];
+            enemies = [];
+            bossBullets = [];
+            boss = null;
+            particles = [];
+            updateHUD();
+        }
+
+        function startLevel(lvl) {
+            state.level = lvl;
+            state.enemiesKilled = 0;
+            enemies = [];
+            bullets = [];
+            bossBullets = [];
+            boss = null;
+
+            // Level Balancing
+            if (lvl % 5 === 0) {
+                state.enemiesInLevel = 1; // Boss only
+                boss = new Boss(lvl);
+                document.getElementById('boss-ui').style.display = 'flex';
+                document.getElementById('boss-name').textContent = `WARNING: SECTOR ${lvl} BOSS`;
+            } else {
+                state.enemiesInLevel = 8 + (lvl * 2);
+                document.getElementById('boss-ui').style.display = 'none';
+            }
+
+            updateHUD();
+        }
+
+        function createStars() {
+            for (let i = 0; i < 80; i++) {
+                backgroundStars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        // --- Game Loop ---
+
+        function loop() {
+            // Clear
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, canvas.width, canvas.height); // Solid clear for trail control
+
+            // Draw Stars
+            drawStars();
+
+            if (state.status === 'PLAYING') {
+                update();
+                draw();
+            } else {
+                if (state.status === 'MENU') {
+                    // Demo mode or just idle
+                }
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        function update() {
+            updatePlayer();
+            updateBullets();
+            updateEnemies();
+            updateBoss();
+            updateParticles();
+            checkCollisions();
+            spawnEnemyLogic();
+        }
+
+        function draw() {
+            drawPlayer();
+            bullets.forEach(b => b.draw());
+            bossBullets.forEach(b => b.draw());
+            enemies.forEach(e => e.draw());
+            if (boss) boss.draw();
+            particles.forEach(p => p.draw());
+        }
+
+        // --- Logic & Entities ---
+
+        function drawStars() {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            backgroundStars.forEach(star => {
+                star.y += star.speed + (state.status === 'PLAYING' ? 2 : 0.5);
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+        }
+
+        function spawnEnemyLogic() {
+            if (boss) return;
+            if (enemies.length < 5 && state.enemiesKilled + enemies.length < state.enemiesInLevel) {
+                // Spawn rate increases with level
+                if (Math.random() < 0.02 + (state.level * 0.005)) {
+                    enemies.push(new Enemy(state.level));
+                }
+            }
+        }
+
+        // Classes //
+
+        class Bullet {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 4;
+                this.height = 12;
+                this.speed = 10;
+                this.color = colors.bullet;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.y -= this.speed;
+                if (this.y < -20) this.markedForDeletion = true;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class BossBullet {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.size = 6;
+                this.color = '#ff00ff';
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Boundaries
+                if (this.x < 0 || this.x > canvas.width || this.y > canvas.height || this.y < -100) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Enemy {
+            constructor(level) {
+                this.width = 32;
+                this.height = 32;
+                this.x = Math.random() * (canvas.width - this.width - 40) + 20;
+                this.y = -50;
+                this.speed = Math.random() * 2 + 1 + (level * 0.2);
+                this.health = 1 + Math.floor(level / 3);
+                this.maxHealth = this.health;
+                this.color = colors.enemy;
+                this.wobble = Math.random() * Math.PI * 2;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.x += Math.sin(this.y * 0.02 + this.wobble) * 1.5;
+
+                // Cleanup
+                if (this.y > canvas.height) {
+                    // Wrap around to keep pressure up, or delete. 
+                    this.y = -50;
+                    this.x = Math.random() * (canvas.width - 30);
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+
+                // Fancy Enemy Shape (Triangle)
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.height);
+                ctx.lineTo(this.x + this.width / 2, this.y);
+                ctx.lineTo(this.x + this.width, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Boss {
+            constructor(level) {
+                this.width = 120;
+                this.height = 80;
+                this.x = canvas.width / 2 - 60;
+                this.y = -150; // Fly in
+                this.targetY = 80;
+                this.health = 50 + (level * 15);
+                this.maxHealth = this.health;
+                this.phase = 0;
+                this.timer = 0;
+                this.color = colors.boss;
+            }
+
+            update() {
+                // Entrance
+                if (this.y < this.targetY) {
+                    this.y += 2;
+                } else {
+                    // Hover pattern
+                    this.timer++;
+                    this.x += Math.sin(this.timer * 0.02) * 3;
+
+                    // Shoot pattern
+                    if (this.timer % 60 === 0) {
+                        this.shoot();
+                    }
+                }
+            }
+
+            shoot() {
+                // Circular burst
+                for (let i = 0; i < 8; i++) {
+                    const angle = (Math.PI * 2 / 8) * i + this.timer;
+                    bossBullets.push(new BossBullet(
+                        this.x + this.width / 2,
+                        this.y + this.height / 2,
+                        Math.cos(angle) * 4,
+                        Math.sin(angle) * 4
+                    ));
+                }
+            }
+
+            draw() {
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.1)';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width / 2, this.y + this.height);
+                ctx.lineTo(this.x, this.y);
+                ctx.lineTo(this.x + this.width, this.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.shadowBlur = 0;
+
+                // Update CSS Health Bar
+                const pct = (this.health / this.maxHealth) * 100;
+                document.getElementById('bossHealthFill').style.width = pct + '%';
+            }
+        }
+
+        function updatePlayer() {
+            if (keys['a'] || keys['ArrowLeft']) player.x -= player.speed;
+            if (keys['d'] || keys['ArrowRight']) player.x += player.speed;
+            if (keys['w'] || keys['ArrowUp']) player.y -= player.speed;
+            if (keys['s'] || keys['ArrowDown']) player.y += player.speed;
+
+            // Bounds
+            player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+            player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+
+            // Shooting
+            if (player.shootCooldown > 0) player.shootCooldown--;
+            if (keys[' '] && player.shootCooldown <= 0) {
+                shootBullet();
+            }
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = colors.player;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = colors.player;
+
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width / 2, player.y);
+            ctx.lineTo(player.x, player.y + player.height);
+            ctx.lineTo(player.x + player.width / 2, player.y + player.height - 10); // indent
+            ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.fill();
+
+            // Engine flame
+            if (Math.random() > 0.5) {
+                ctx.fillStyle = '#ffaa00';
+                ctx.beginPath();
+                ctx.moveTo(player.x + player.width / 2 - 5, player.y + player.height - 5);
+                ctx.lineTo(player.x + player.width / 2, player.y + player.height + 15);
+                ctx.lineTo(player.x + player.width / 2 + 5, player.y + player.height - 5);
+                ctx.fill();
+            }
+
+            ctx.shadowBlur = 0;
+        }
+
+        function shootBullet() {
+            bullets.push(new Bullet(player.x + player.width / 2 - 2, player.y));
+            player.shootCooldown = 8;
+            spawnParticle(player.x + player.width / 2, player.y, colors.bullet, 5);
+        }
+
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                b.update();
+                if (b.markedForDeletion) bullets.splice(i, 1);
+            }
+        }
+
+        function updateBoss() {
+            if (!boss) return;
+            boss.update();
+
+            // Boss Bullets
+            for (let i = bossBullets.length - 1; i >= 0; i--) {
+                let b = bossBullets[i];
+                b.update();
+
+                // Collision with player
+                // Simple box collision approximation
+                if (b.x > player.x && b.x < player.x + player.width &&
+                    b.y > player.y && b.y < player.y + player.height) {
+                    takeDamage(10);
+                    spawnParticle(b.x, b.y, '#ff0000', 10);
+                    b.markedForDeletion = true;
+                }
+
+                if (b.markedForDeletion) bossBullets.splice(i, 1);
+            }
+        }
+
+        function updateEnemies() {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let e = enemies[i];
+                e.update();
+            }
+        }
+
+        function checkCollisions() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                let hitResult = false;
+
+                // Check Enemies
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let e = enemies[j];
+                    if (b.x < e.x + e.width &&
+                        b.x + b.width > e.x &&
+                        b.y < e.y + e.height &&
+                        b.y + b.height > e.y) {
+
+                        // Hit
+                        state.score += 100;
+                        state.enemiesKilled++;
+                        spawnParticle(e.x + e.width / 2, e.y + e.height / 2, colors.enemy, 15);
+                        enemies.splice(j, 1);
+                        hitResult = true;
+
+                        checkWinCondition();
+                        break;
+                    }
+                }
+
+                // Check Boss
+                if (!hitResult && boss) {
+                    if (b.x > boss.x && b.x < boss.x + boss.width &&
+                        b.y > boss.y && b.y < boss.y + boss.height) {
+
+                        boss.health -= 2; // Damage
+                        spawnParticle(b.x, b.y, '#fff', 3);
+                        hitResult = true;
+
+                        if (boss.health <= 0) {
+                            state.score += 5000;
+                            state.enemiesKilled++; // Count boss as kill
+                            spawnParticle(boss.x + boss.width / 2, boss.y + boss.height / 2, colors.boss, 100);
+                            boss = null;
+                            bossBullets = []; // Clear bullets on kill
+                            checkWinCondition();
+                        }
+                    }
+                }
+
+                if (hitResult) {
+                    b.markedForDeletion = true;
+                    // Note: We don't splice here immediately to avoid index issues if we had concurrent checks,
+                    // but since we are iterating backwards, we could. However, updateBullets handles deletion too?
+                    // No, updateBullets is separate. We should splice here.
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Enemy vs Player
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                let e = enemies[j];
+                if (player.x < e.x + e.width &&
+                    player.x + player.width > e.x &&
+                    player.y < e.y + e.height &&
+                    player.y + player.height > e.y) {
+
+                    takeDamage(20);
+                    spawnParticle(e.x, e.y, colors.enemy, 20);
+                    enemies.splice(j, 1);
+                }
+            }
+
+            // Boss vs Player (Body slam)
+            if (boss) {
+                if (player.x < boss.x + boss.width &&
+                    player.x + player.width > boss.x &&
+                    player.y < boss.y + boss.height &&
+                    player.y + player.height > boss.y) {
+                    takeDamage(1); // Continuous damage
+                }
+            }
+        }
+
+        function checkWinCondition() {
+            updateHUD();
+            // If all quota met AND no living enemies
+            if (state.enemiesKilled >= state.enemiesInLevel && enemies.length === 0 && !boss) {
+                levelComplete();
+            }
+        }
+
+        function takeDamage(amount) {
+            state.health = Math.max(0, state.health - amount);
+            updateHUD();
+
+            // Screen shake or red flash
+            document.body.style.filter = 'sepia(1) hue-rotate(-50deg) saturate(3)';
+            setTimeout(() => document.body.style.filter = 'none', 100);
+
+            if (state.health <= 0) {
+                gameOver();
+            }
+        }
+
+        // --- Particles ---
+        function spawnParticle(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 1.0,
+                    color: color,
+                    draw: function () {
+                        ctx.globalAlpha = this.life;
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(this.x, this.y, 3, 3);
+                        ctx.globalAlpha = 1.0;
+                    }
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.05;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        // --- UI Functions ---
+
+        function updateHUD() {
+            document.getElementById('scoreVal').innerText = state.score;
+            document.getElementById('levelVal').innerText = state.level;
+
+            let remaining = Math.max(0, state.enemiesInLevel - state.enemiesKilled);
+            if (boss) remaining = "BOSS";
+            document.getElementById('enemiesVal').innerText = remaining;
+
+            const healthPct = (state.health / state.maxHealth) * 100;
+            document.getElementById('playerHealthFill').style.width = healthPct + '%';
+        }
+
+        function levelComplete() {
+            state.status = 'LEVEL_WAIT';
+            document.getElementById('levelScreen').classList.remove('hidden');
+            const bonus = state.health * 10;
+            state.score += bonus;
+            updateHUD();
+            document.getElementById('levelBonus').innerText = bonus;
+        }
+
+        function nextLevel() {
+            document.getElementById('levelScreen').classList.add('hidden');
+            state.status = 'PLAYING';
+            // Heal slightly
+            state.health = Math.min(100, state.health + 20);
+            startLevel(state.level + 1);
+        }
+
+        function gameOver() {
+            state.status = 'GAME_OVER';
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('finalScore').innerText = state.score;
+            document.getElementById('finalLevel').innerText = state.level;
+        }
+
+        function restartGame() {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            startGame();
+        }
+
+        // --- Inputs ---
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        // Start
+        init();
+        updateHUD();
+
+    </script>
+</body>
+
+</html>
