@@ -2,7 +2,7 @@
 
 **Neon Blast** is a high-octane, retro-futuristic arcade space shooter built entirely with HTML5 Canvas and JavaScript. Defend your sector against waves of alien enemies and massive bosses in a vibrant, neon-soaked universe.
 
-
+play here : https://nibinbijucheriyan.github.io/Neon-Blast/
 
 ## ✨ Features
 
